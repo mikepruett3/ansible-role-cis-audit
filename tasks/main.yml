@@ -1,2 +1,83 @@
 ---
 # tasks file for ansible-role-cis-audit
+
+- name: "Include OS-specific variables"
+  include_vars: "{{ ansible_os_family }}.yaml"
+
+- name: "Gather the package facts"
+  ansible.builtin.package_facts:
+    manager: auto
+  when: ansible_facts.packages is not defined
+
+- name: "Install required packages"
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ packages }}"
+  when:
+    - item|string not in ansible_facts.packages
+    - ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Get status of Ubuntu Security Guide module in Ubuntu Advantage"
+  ansible.builtin.shell: ua status | grep -i "usg" | awk '{ print $3 }'
+  register: usg_status
+
+- name: "Enable Ubuntu Security Guide module in Ubuntu Advantage"
+  ansible.builtin.shell: ua enable usg
+  when:
+    - usg_status.stdout != "enabled"
+    - ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Install Ubuntu Security Guide module"
+  ansible.builtin.package:
+    name: "usg"
+    state: present
+  when:
+    - "'usg' not in ansible_facts.packages"
+    - ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Upload Customization Profile (Tailor) of Ubuntu Security Guide"
+  ansible.builtin.copy:
+    src: "customizations/tailor_{{ ansible_facts[‘distribution_major_version’] }}.xml"
+    dest: /tmp/tailor.xml
+    owner: root
+    group: root
+    mode: '0640'
+  when: ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Audit host against Ubuntu Security Guide (CIS Benchmark) scan, using Customization Profile (Tailor)"
+  ansible.builtin.shell: 'usg audit --tailoring-file /tmp/tailor.xml --html-file /tmp/report-{{ inventory_hostname }}.html'
+  when: ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Download results report output from Ubuntu Security Guide (CIS Benchmark) scan"
+  ansible.builtin.fetch:
+    src: "/tmp/report-{{ inventory_hostname }}.html"
+    dest: "/tmp/report-{{ inventory_hostname }}.html"
+    flat: yes
+  when: ansible_facts['distribution'] == "Ubuntu"
+
+- name: "Email results report output from Ubuntu Security Guide (CIS Benchmark) scan"
+  community.general.mail:
+    host: "{{ smtp_host }}"
+    port: "{{ smtp_port }}"
+    to: "{{ recipient }}"
+    from: "{{ sender }}"
+    subject: "Audit Report: {{ inventory_hostname }} has been scanned/audited using Ubuntu Security Guide"
+    attach:
+      - "/tmp/report-{{ inventory_hostname }}.html"
+    secure: never
+  delegate_to: localhost
+
+- name: "Cleanup of output off {{ inventory_hostname }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - /tmp/tailor.xml
+    - "/tmp/report-{{ inventory_hostname }}.html"
+
+- name: "Cleanup of output off control machine"
+  ansible.builtin.file:
+    path: "/tmp/report-{{ inventory_hostname }}.html"
+    state: absent
+  delegate_to: localhost

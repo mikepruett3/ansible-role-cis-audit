@@ -1,0 +1,6 @@
+---
+# Debian vars file for ansible-role-cis-audit
+
+packages:
+  - ubuntu-advantage-tools
+
