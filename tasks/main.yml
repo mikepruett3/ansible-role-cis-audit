@@ -38,7 +38,7 @@
 
 - name: "Upload Customization Profile (Tailor) of Ubuntu Security Guide"
   ansible.builtin.copy:
-    src: "customizations/tailor_{{ ansible_facts[‘distribution_major_version’] }}.xml"
+    src: "customizations/tailor_{{ ansible_facts['distribution_major_version'] }}.xml"
     dest: /tmp/tailor.xml
     owner: root
     group: root
