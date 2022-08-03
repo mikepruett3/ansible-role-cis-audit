@@ -63,7 +63,8 @@
     to: "{{ recipient }}"
     from: "{{ sender }}"
     subject: "Audit Report: {{ inventory_hostname }} has been scanned/audited using Ubuntu Security Guide"
-    body: "{{ lookup('file', '/tmp/report-{{ inventory_hostname }}.html') }}"
+    attach:
+      - "/tmp/report-{{ inventory_hostname }}.html"
     secure: never
   delegate_to: localhost
 
