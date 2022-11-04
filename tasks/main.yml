@@ -10,5 +10,5 @@
   when: ansible_facts.packages is not defined
 
 - name: "Include tasks from Ubuntu playbook"
-  ansible.builtin.include_tasks: ubuntu.yaml
+  ansible.builtin.include_tasks: Ubuntu.yaml
   when: ansible_facts['distribution'] == "Ubuntu"
